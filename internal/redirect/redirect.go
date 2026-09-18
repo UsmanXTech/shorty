@@ -2,12 +2,15 @@ package redirect
 
 import (
 	"errors"
+	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
 	"github.com/UsmanXTech/shorty/internal/analytics"
 	"github.com/UsmanXTech/shorty/internal/cache"
+	"github.com/UsmanXTech/shorty/internal/geoip"
 	"github.com/UsmanXTech/shorty/internal/links"
 )
 
@@ -15,6 +18,7 @@ type Handler struct {
 	repo      links.Repository
 	cache     *cache.Cache
 	analytics *analytics.Recorder
+	geo       *geoip.Database
 }
 
 func New(repo links.Repository, caches ...*cache.Cache) *Handler {
@@ -27,6 +31,19 @@ func New(repo links.Repository, caches ...*cache.Cache) *Handler {
 
 func NewWithAnalytics(repo links.Repository, c *cache.Cache, recorder *analytics.Recorder) *Handler {
 	return &Handler{repo: repo, cache: c, analytics: recorder}
+}
+
+func NewWithAnalyticsAndGeoIP(repo links.Repository, c *cache.Cache, recorder *analytics.Recorder, geo *geoip.Database) *Handler {
+	return &Handler{repo: repo, cache: c, analytics: recorder, geo: geo}
+}
+
+func clientAddr(r *http.Request) (netip.Addr, bool) {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	addr, err := netip.ParseAddr(strings.TrimSpace(host))
+	return addr, err == nil
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -87,12 +104,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.cache.Set(updated)
 	}
 	if h.analytics != nil {
-		h.analytics.Record(analytics.Event{
+		event := analytics.Event{
 			Slug:      slug,
 			CreatedAt: time.Now().UTC(),
 			Referrer:  r.Referer(),
 			UserAgent: r.UserAgent(),
-		})
+		}
+		if h.geo != nil {
+			if addr, ok := clientAddr(r); ok {
+				event.Country, _ = h.geo.Lookup(addr)
+			}
+		}
+		h.analytics.Record(event)
 	}
 	http.Redirect(w, r, updated.URL, http.StatusFound)
 }
