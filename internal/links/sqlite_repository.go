@@ -50,13 +50,13 @@ func (r *SQLiteRepository) List() ([]Link, error) {
 
 func (r *SQLiteRepository) GetByID(id int64) (Link, error) {
 	return scanLink(r.db.QueryRow(
-		"SELECT id, slug, url, created_at, updated_at, expires_at FROM links WHERE id = ?", id,
+		"SELECT id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks FROM links WHERE id = ?", id,
 	))
 }
 
 func (r *SQLiteRepository) GetBySlug(slug string) (Link, error) {
 	return scanLink(r.db.QueryRow(
-		"SELECT id, slug, url, created_at, updated_at, expires_at FROM links WHERE slug = ?", slug,
+		"SELECT id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks FROM links WHERE slug = ?", slug,
 	))
 }
 
