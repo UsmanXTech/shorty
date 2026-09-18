@@ -14,11 +14,12 @@ func NewSQLiteStore(db *sql.DB) *SQLiteStore {
 
 func (s *SQLiteStore) RecordEvent(event Event) error {
 	_, err := s.db.Exec(
-		"INSERT INTO click_events (slug, created_at, referrer, user_agent) VALUES (?, ?, ?, ?)",
+		"INSERT INTO click_events (slug, created_at, referrer, user_agent, country) VALUES (?, ?, ?, ?, ?)",
 		event.Slug,
 		event.CreatedAt.UTC().Format("2006-01-02T15:04:05.999999999Z07:00"),
 		event.Referrer,
 		event.UserAgent,
+		event.Country,
 	)
 	return err
 }
