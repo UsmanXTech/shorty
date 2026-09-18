@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const schemaVersion = 3
+const schemaVersion = 4
 
 func Migrate(db *sql.DB) error {
 	var version int
@@ -62,6 +62,17 @@ PRAGMA user_version = 3;
 `
 		if _, err := tx.Exec(schema); err != nil {
 			return fmt.Errorf("apply schema v3: %w", err)
+		}
+	}
+	if version < 4 {
+		if _, err := tx.Exec(`ALTER TABLE click_events ADD COLUMN referrer TEXT;`); err != nil {
+			return fmt.Errorf("apply schema v4 referrer: %w", err)
+		}
+		if _, err := tx.Exec(`ALTER TABLE click_events ADD COLUMN user_agent TEXT;`); err != nil {
+			return fmt.Errorf("apply schema v4 user agent: %w", err)
+		}
+		if _, err := tx.Exec(`PRAGMA user_version = 4;`); err != nil {
+			return fmt.Errorf("set schema v4: %w", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
