@@ -61,5 +61,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, link.URL, http.StatusFound)
+	updated, err := h.repo.IncrementClicks(slug)
+	if errors.Is(err, links.ErrClickLimit) {
+		if h.cache != nil { h.cache.Delete(slug) }
+		http.Error(w, "link click limit reached", http.StatusGone)
+		return
+	}
+	if errors.Is(err, links.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	if h.cache != nil { h.cache.Set(updated) }
+	http.Redirect(w, r, updated.URL, http.StatusFound)
 }
