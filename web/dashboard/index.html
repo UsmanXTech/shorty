@@ -44,7 +44,7 @@ function draw(points) {
   ctx.strokeStyle='#33415f'; ctx.beginPath(); ctx.moveTo(pad, h-pad); ctx.lineTo(w-pad,h-pad); ctx.stroke();
   ctx.strokeStyle='#6ea8fe'; ctx.lineWidth=2; ctx.beginPath();
   points.forEach((p,i)=>{ const x=pad+i*cw, y=h-pad-(p.clicks/max)*(h-pad*2); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
-  ctx.fillStyle='#9da8c2'; ctx.font='12px system-ui'; points.forEach((p,i)=>{ const x=pad+i*cw; if(i===0||i===points.length-1) ctx.fillText(esc(p.label),Math.max(0,x-24),h-7); });
+  ctx.fillStyle='#9da8c2'; ctx.font='12px system-ui'; points.forEach((p,i)=>{ const x=pad+i*cw; if(i===0||i===points.length-1) ctx.fillText(p.label,Math.max(0,x-24),h-7); });
 }
 async function load() {
   setStatus('');
@@ -55,11 +55,11 @@ async function load() {
     const rows=links.slice().sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,10);
     $('links').innerHTML=rows.map(l=>`<tr><td><a href="/${encodeURIComponent(l.slug)}">/${esc(l.slug)}</a></td><td title="${esc(l.url)}">${esc(l.url)}</td><td>${l.clicks||0}</td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No links yet.</td></tr>';
     let total=0, series=[];
-    for(const l of rows){ const a=await fetch(`/api/v1/links/${l.id}/analytics?interval=day`).then(r=>r.ok?r.json():null); if(a){ total += a.range_clicks||0; series.push(a); } }
+    for(const l of links){ const a=await fetch(`/api/v1/links/${l.id}/analytics?interval=day`).then(r=>r.ok?r.json():null); if(a){ total += a.clicks_in_range||0; series.push(a); } }
     $('recentClicks').textContent=total;
-    const buckets={}; series.forEach(a=>(a.daily||a.hourly||[]).forEach(p=>buckets[p.period]= (buckets[p.period]||0)+p.clicks));
+    const buckets={}; series.forEach(a=>(a.buckets||[]).forEach(p=>{buckets[p.period]=(buckets[p.period]||0)+p.clicks;}));
     const points=Object.entries(buckets).sort().slice(-7).map(([label,clicks])=>({label:label.slice(5,10),clicks}));
-    draw(points.length?points:Array.from({length:7},(_,i)=>({label:'',clicks:0})));
+    draw(points.length?points:Array.from({length:7},()=>({label:'',clicks:0})));
   } catch(e) { setStatus(e.message||'Dashboard error'); }
 }
 $('refresh').addEventListener('click',load); window.addEventListener('resize',load); load();
