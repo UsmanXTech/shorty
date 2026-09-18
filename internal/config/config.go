@@ -3,7 +3,8 @@ package config
 import "os"
 
 type Config struct {
-	Address string
+	Address  string
+	Database string
 }
 
 func Load() Config {
@@ -11,6 +12,9 @@ func Load() Config {
 	if address == "" {
 		address = ":8080"
 	}
-
-	return Config{Address: address}
+	database := os.Getenv("SHORTY_DB")
+	if database == "" {
+		database = "shorty.db"
+	}
+	return Config{Address: address, Database: database}
 }
