@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("link not found")
-	ErrConflict = errors.New("slug already exists")
+	ErrNotFound   = errors.New("link not found")
+	ErrConflict   = errors.New("slug already exists")
 	ErrClickLimit = errors.New("link click limit reached")
 )
 
@@ -95,8 +95,12 @@ func (r *MemoryRepository) IncrementClicks(slug string) (Link, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for id, link := range r.links {
-		if link.Slug != slug { continue }
-		if link.MaxClicks != nil && link.Clicks >= *link.MaxClicks { return Link{}, ErrClickLimit }
+		if link.Slug != slug {
+			continue
+		}
+		if link.MaxClicks != nil && link.Clicks >= *link.MaxClicks {
+			return Link{}, ErrClickLimit
+		}
 		link.Clicks++
 		r.links[id] = link
 		return link, nil

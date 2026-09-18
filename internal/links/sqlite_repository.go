@@ -124,7 +124,10 @@ func scanLink(row scanner) (Link, error) {
 	if err != nil {
 		return Link{}, err
 	}
-	if maxClicks.Valid { value := maxClicks.Int64; link.MaxClicks = &value }
+	if maxClicks.Valid {
+		value := maxClicks.Int64
+		link.MaxClicks = &value
+	}
 	link.Clicks = clicks
 	if expires.Valid && expires.String != "" {
 		value, err := time.Parse(time.RFC3339Nano, expires.String)
@@ -138,10 +141,16 @@ func scanLink(row scanner) (Link, error) {
 
 func (r *SQLiteRepository) IncrementClicks(slug string) (Link, error) {
 	result, err := r.db.Exec(`UPDATE links SET clicks = clicks + 1 WHERE slug = ? AND (max_clicks IS NULL OR clicks < max_clicks)`, slug)
-	if err != nil { return Link{}, err }
+	if err != nil {
+		return Link{}, err
+	}
 	n, err := result.RowsAffected()
-	if err != nil { return Link{}, err }
-	if n == 0 { return Link{}, ErrNotFound }
+	if err != nil {
+		return Link{}, err
+	}
+	if n == 0 {
+		return Link{}, ErrNotFound
+	}
 	return r.GetBySlug(slug)
 }
 
