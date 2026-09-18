@@ -32,7 +32,7 @@ type linkRequest struct {
 	URL       string     `json:"url"`
 	Slug      string     `json:"slug,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	MaxClicks *int64 `json:"max_clicks,omitempty"`
+	MaxClicks *int64     `json:"max_clicks,omitempty"`
 }
 
 func (a *LinkAPI) Routes(mux *http.ServeMux) {
@@ -53,7 +53,10 @@ func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "url must be an absolute http or https URL")
 		return
 	}
-	if req.MaxClicks != nil && *req.MaxClicks <= 0 { writeError(w, http.StatusBadRequest, "max_clicks must be greater than zero"); return }
+	if req.MaxClicks != nil && *req.MaxClicks <= 0 {
+		writeError(w, http.StatusBadRequest, "max_clicks must be greater than zero")
+		return
+	}
 	if req.Slug == "" {
 		req.Slug = generateSlug()
 	}
@@ -80,13 +83,60 @@ func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, link)
 }
 
-func (a *LinkAPI) list(w http.ResponseWriter, _ *http.Request) {
+func (a *LinkAPI) list(w http.ResponseWriter, r *http.Request) {
 	items, err := a.repo.List()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not list links")
 		return
 	}
-	writeJSON(w, http.StatusOK, items)
+
+	q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
+	status := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status")))
+	activity := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("activity")))
+	if status != "" && status != "active" && status != "expired" && status != "limit-reached" {
+		writeError(w, http.StatusBadRequest, "status must be active, expired, or limit-reached")
+		return
+	}
+	if activity != "" && activity != "clicked" && activity != "unvisited" {
+		writeError(w, http.StatusBadRequest, "activity must be clicked or unvisited")
+		return
+	}
+
+	now := time.Now().UTC()
+	filtered := make([]links.Link, 0, len(items))
+	for _, link := range items {
+		if q != "" && !strings.Contains(strings.ToLower(link.Slug), q) && !strings.Contains(strings.ToLower(link.URL), q) {
+			continue
+		}
+		expired := link.ExpiresAt != nil && !now.Before(link.ExpiresAt.UTC())
+		limited := link.MaxClicks != nil && link.Clicks >= *link.MaxClicks
+		switch status {
+		case "active":
+			if expired || limited {
+				continue
+			}
+		case "expired":
+			if !expired {
+				continue
+			}
+		case "limit-reached":
+			if !limited {
+				continue
+			}
+		}
+		switch activity {
+		case "clicked":
+			if link.Clicks == 0 {
+				continue
+			}
+		case "unvisited":
+			if link.Clicks != 0 {
+				continue
+			}
+		}
+		filtered = append(filtered, link)
+	}
+	writeJSON(w, http.StatusOK, filtered)
 }
 
 func (a *LinkAPI) get(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +194,10 @@ func (a *LinkAPI) update(w http.ResponseWriter, r *http.Request) {
 		current.Slug = req.Slug
 	}
 	current.ExpiresAt = req.ExpiresAt
-	if req.MaxClicks != nil && *req.MaxClicks <= 0 { writeError(w, http.StatusBadRequest, "max_clicks must be greater than zero"); return }
+	if req.MaxClicks != nil && *req.MaxClicks <= 0 {
+		writeError(w, http.StatusBadRequest, "max_clicks must be greater than zero")
+		return
+	}
 	current.MaxClicks = req.MaxClicks
 	current.UpdatedAt = time.Now().UTC()
 
