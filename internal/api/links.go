@@ -11,15 +11,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/UsmanXTech/shorty/internal/cache"
 	"github.com/UsmanXTech/shorty/internal/links"
 )
 
 type LinkAPI struct {
 	repo links.Repository
+	cache *cache.Cache
 }
 
 func NewLinkAPI(repo links.Repository) *LinkAPI {
 	return &LinkAPI{repo: repo}
+}
+
+func NewLinkAPIWithCache(repo links.Repository, c *cache.Cache) *LinkAPI {
+	return &LinkAPI{repo: repo, cache: c}
 }
 
 type linkRequest struct {
@@ -37,6 +43,8 @@ func (a *LinkAPI) Routes(mux *http.ServeMux) {
 }
 
 func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
+	oldSlug := current.Slug
+
 	var req linkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
@@ -65,6 +73,9 @@ func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, http.StatusInternalServerError, "could not create link")
 		return
+	}
+	if a.cache != nil {
+		a.cache.Delete(link.Slug)
 	}
 	writeJSON(w, http.StatusCreated, link)
 }
@@ -143,6 +154,10 @@ func (a *LinkAPI) update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not update link")
 		return
 	}
+	if a.cache != nil {
+		a.cache.Delete(oldSlug)
+		a.cache.Delete(updated.Slug)
+	}
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -152,14 +167,25 @@ func (a *LinkAPI) delete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
-	err := a.repo.Delete(id)
+	link, err := a.repo.GetByID(id)
 	if errors.Is(err, links.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "link not found")
 		return
 	}
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not get link")
+		return
+	}
+	if err := a.repo.Delete(id); err != nil {
+		if errors.Is(err, links.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "link not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "could not delete link")
 		return
+	}
+	if a.cache != nil {
+		a.cache.Delete(link.Slug)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
