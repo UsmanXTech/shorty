@@ -3,8 +3,9 @@ package config
 import "os"
 
 type Config struct {
-	Address  string
-	Database string
+	Address    string
+	Database   string
+	GeoIPDB    string
 }
 
 func Load() Config {
@@ -16,5 +17,9 @@ func Load() Config {
 	if database == "" {
 		database = "shorty.db"
 	}
-	return Config{Address: address, Database: database}
+	return Config{
+		Address:  address,
+		Database: database,
+		GeoIPDB:  os.Getenv("SHORTY_GEOIP_DB"),
+	}
 }
