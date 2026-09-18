@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/UsmanXTech/shorty/internal/analytics"
 	"github.com/UsmanXTech/shorty/internal/api"
 	"github.com/UsmanXTech/shorty/internal/cache"
 	"github.com/UsmanXTech/shorty/internal/config"
@@ -15,6 +16,7 @@ type Server struct {
 	cfg       config.Config
 	repo      links.Repository
 	linkCache *cache.Cache
+	analytics *analytics.Recorder
 }
 
 func New(cfg config.Config) *Server {
@@ -25,11 +27,15 @@ func NewWithRepository(cfg config.Config, repo links.Repository) *Server {
 	return &Server{cfg: cfg, repo: repo, linkCache: cache.New()}
 }
 
+func NewWithRepositoryAndAnalytics(cfg config.Config, repo links.Repository, recorder *analytics.Recorder) *Server {
+	return &Server{cfg: cfg, repo: repo, linkCache: cache.New(), analytics: recorder}
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
 	api.NewLinkAPIWithCache(s.repo, s.linkCache).Routes(mux)
-	mux.Handle("GET /{slug}", redirect.New(s.repo, s.linkCache))
+	mux.Handle("GET /{slug}", redirect.NewWithAnalytics(s.repo, s.linkCache, s.analytics))
 	return mux
 }
 
