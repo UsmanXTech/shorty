@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/UsmanXTech/shorty/internal/analytics"
 	"github.com/UsmanXTech/shorty/internal/cache"
 	"github.com/UsmanXTech/shorty/internal/links"
 )
 
 type Handler struct {
-	repo links.Repository
-	cache *cache.Cache
+	repo      links.Repository
+	cache     *cache.Cache
 	analytics *analytics.Recorder
 }
 
@@ -26,7 +27,6 @@ func New(repo links.Repository, caches ...*cache.Cache) *Handler {
 
 func NewWithAnalytics(repo links.Repository, c *cache.Cache, recorder *analytics.Recorder) *Handler {
 	return &Handler{repo: repo, cache: c, analytics: recorder}
-}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := h.repo.IncrementClicks(slug)
 	if errors.Is(err, links.ErrClickLimit) {
-		if h.cache != nil { h.cache.Delete(slug) }
+		if h.cache != nil {
+			h.cache.Delete(slug)
+		}
 		http.Error(w, "link click limit reached", http.StatusGone)
 		return
 	}
@@ -81,9 +83,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	if h.cache != nil { h.cache.Set(updated) }
+	if h.cache != nil {
+		h.cache.Set(updated)
+	}
 	if h.analytics != nil {
-		h.analytics.Record(analytics.Event{Slug: slug, CreatedAt: time.Now().UTC()})
+		h.analytics.Record(analytics.Event{
+			Slug:      slug,
+			CreatedAt: time.Now().UTC(),
+			Referrer:  r.Referer(),
+			UserAgent: r.UserAgent(),
+		})
 	}
 	http.Redirect(w, r, updated.URL, http.StatusFound)
 }
