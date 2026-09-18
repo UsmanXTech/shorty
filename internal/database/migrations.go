@@ -28,9 +28,7 @@ CREATE TABLE IF NOT EXISTS links (
 	url TEXT NOT NULL,
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL,
-	expires_at TEXT,
-	max_clicks INTEGER CHECK (max_clicks IS NULL OR max_clicks > 0),
-	clicks INTEGER NOT NULL DEFAULT 0 CHECK (clicks >= 0)
+	expires_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_links_slug ON links(slug);
 CREATE INDEX IF NOT EXISTS idx_links_expires_at ON links(expires_at);
