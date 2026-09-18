@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 func Migrate(db *sql.DB) error {
 	var version int
@@ -47,6 +47,21 @@ PRAGMA user_version = 1;
 		}
 		if _, err := tx.Exec(`PRAGMA user_version = 2;`); err != nil {
 			return fmt.Errorf("set schema v2: %w", err)
+		}
+	}
+	if version < 3 {
+		const schema = `
+CREATE TABLE IF NOT EXISTS click_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	slug TEXT NOT NULL,
+	created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_click_events_slug ON click_events(slug);
+CREATE INDEX IF NOT EXISTS idx_click_events_created_at ON click_events(created_at);
+PRAGMA user_version = 3;
+`
+		if _, err := tx.Exec(schema); err != nil {
+			return fmt.Errorf("apply schema v3: %w", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
