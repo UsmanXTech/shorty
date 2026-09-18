@@ -8,6 +8,7 @@ import (
 var (
 	ErrNotFound = errors.New("link not found")
 	ErrConflict = errors.New("slug already exists")
+	ErrClickLimit = errors.New("link click limit reached")
 )
 
 type Repository interface {
@@ -17,6 +18,7 @@ type Repository interface {
 	GetBySlug(string) (Link, error)
 	Update(Link) (Link, error)
 	Delete(int64) error
+	IncrementClicks(string) (Link, error)
 }
 
 type MemoryRepository struct {
@@ -87,6 +89,19 @@ func (r *MemoryRepository) Update(link Link) (Link, error) {
 	}
 	r.links[link.ID] = link
 	return link, nil
+}
+
+func (r *MemoryRepository) IncrementClicks(slug string) (Link, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, link := range r.links {
+		if link.Slug != slug { continue }
+		if link.MaxClicks != nil && link.Clicks >= *link.MaxClicks { return Link{}, ErrClickLimit }
+		link.Clicks++
+		r.links[id] = link
+		return link, nil
+	}
+	return Link{}, ErrNotFound
 }
 
 func (r *MemoryRepository) Delete(id int64) error {
