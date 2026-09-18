@@ -11,6 +11,7 @@ type Event struct {
 	CreatedAt time.Time
 	Referrer  string
 	UserAgent string
+	Country   string
 }
 
 type Store interface {
