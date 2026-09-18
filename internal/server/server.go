@@ -5,14 +5,16 @@ import (
 	"net/http"
 
 	"github.com/UsmanXTech/shorty/internal/api"
+	"github.com/UsmanXTech/shorty/internal/cache"
 	"github.com/UsmanXTech/shorty/internal/config"
 	"github.com/UsmanXTech/shorty/internal/links"
 	"github.com/UsmanXTech/shorty/internal/redirect"
 )
 
 type Server struct {
-	cfg  config.Config
-	repo links.Repository
+	cfg       config.Config
+	repo      links.Repository
+	linkCache *cache.Cache
 }
 
 func New(cfg config.Config) *Server {
@@ -20,14 +22,14 @@ func New(cfg config.Config) *Server {
 }
 
 func NewWithRepository(cfg config.Config, repo links.Repository) *Server {
-	return &Server{cfg: cfg, repo: repo}
+	return &Server{cfg: cfg, repo: repo, linkCache: cache.New()}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
-	api.NewLinkAPI(s.repo).Routes(mux)
-	mux.Handle("GET /{slug}", redirect.New(s.repo))
+	api.NewLinkAPIWithCache(s.repo, s.linkCache).Routes(mux)
+	mux.Handle("GET /{slug}", redirect.New(s.repo, s.linkCache))
 	return mux
 }
 
