@@ -18,8 +18,17 @@ func TestHandlerServesDashboard(t *testing.T) {
 	if got := res.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
 		t.Fatalf("content type = %q, want text/html", got)
 	}
-	if !strings.Contains(res.Body.String(), "Shorty Dashboard") {
+	body := res.Body.String()
+	if !strings.Contains(body, "Shorty Dashboard") {
 		t.Fatal("dashboard title missing")
+	}
+	for _, heading := range []string{"Click activity", "Referrers", "Countries", "Browsers", "Devices"} {
+		if !strings.Contains(body, ">"+heading+"<") {
+			t.Fatalf("dashboard heading %q missing", heading)
+		}
+	}
+	if !strings.Contains(body, "function drawChart") || !strings.Contains(body, "function drawBreakdown") {
+		t.Fatal("dashboard chart rendering functions missing")
 	}
 }
 
