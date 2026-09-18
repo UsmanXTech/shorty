@@ -13,6 +13,7 @@ import (
 type Handler struct {
 	repo links.Repository
 	cache *cache.Cache
+	analytics *analytics.Recorder
 }
 
 func New(repo links.Repository, caches ...*cache.Cache) *Handler {
@@ -21,6 +22,11 @@ func New(repo links.Repository, caches ...*cache.Cache) *Handler {
 		c = caches[0]
 	}
 	return &Handler{repo: repo, cache: c}
+}
+
+func NewWithAnalytics(repo links.Repository, c *cache.Cache, recorder *analytics.Recorder) *Handler {
+	return &Handler{repo: repo, cache: c, analytics: recorder}
+}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -76,5 +82,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.cache != nil { h.cache.Set(updated) }
+	if h.analytics != nil {
+		h.analytics.Record(analytics.Event{Slug: slug, CreatedAt: time.Now().UTC()})
+	}
 	http.Redirect(w, r, updated.URL, http.StatusFound)
 }
