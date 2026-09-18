@@ -49,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /", dashboard.Handler())
 	mux.HandleFunc("GET /health", s.health)
 	api.NewLinkAPIWithCache(s.repo, s.linkCache).Routes(mux)
+	api.NewQRAPI(s.repo, s.cfg).Routes(mux)
 	if s.db != nil {
 		api.NewAnalyticsAPI(s.repo, analytics.NewQueryStore(s.db)).Routes(mux)
 	}
