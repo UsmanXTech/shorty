@@ -122,6 +122,7 @@ func (a *LinkAPI) update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not get link")
 		return
 	}
+	oldSlug := current.Slug
 
 	var req linkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
