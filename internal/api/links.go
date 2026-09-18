@@ -32,6 +32,7 @@ type linkRequest struct {
 	URL       string     `json:"url"`
 	Slug      string     `json:"slug,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	MaxClicks *int64 `json:"max_clicks,omitempty"`
 }
 
 func (a *LinkAPI) Routes(mux *http.ServeMux) {
@@ -43,8 +44,6 @@ func (a *LinkAPI) Routes(mux *http.ServeMux) {
 }
 
 func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
-	oldSlug := current.Slug
-
 	var req linkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
@@ -54,6 +53,7 @@ func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "url must be an absolute http or https URL")
 		return
 	}
+	if req.MaxClicks != nil && *req.MaxClicks <= 0 { writeError(w, http.StatusBadRequest, "max_clicks must be greater than zero"); return }
 	if req.Slug == "" {
 		req.Slug = generateSlug()
 	}
@@ -64,7 +64,7 @@ func (a *LinkAPI) create(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC()
 	link, err := a.repo.Create(links.Link{
-		Slug: req.Slug, URL: req.URL, CreatedAt: now, UpdatedAt: now, ExpiresAt: req.ExpiresAt,
+		Slug: req.Slug, URL: req.URL, CreatedAt: now, UpdatedAt: now, ExpiresAt: req.ExpiresAt, MaxClicks: req.MaxClicks,
 	})
 	if err != nil {
 		if errors.Is(err, links.ErrConflict) {
@@ -144,6 +144,8 @@ func (a *LinkAPI) update(w http.ResponseWriter, r *http.Request) {
 		current.Slug = req.Slug
 	}
 	current.ExpiresAt = req.ExpiresAt
+	if req.MaxClicks != nil && *req.MaxClicks <= 0 { writeError(w, http.StatusBadRequest, "max_clicks must be greater than zero"); return }
+	current.MaxClicks = req.MaxClicks
 	current.UpdatedAt = time.Now().UTC()
 
 	updated, err := a.repo.Update(current)
