@@ -52,6 +52,8 @@ docker compose up -d --build
 
 The container runs the single Shorty binary as a non-root user. SQLite is stored at `/data/shorty.db`; keep `/data` on a persistent volume. `SHORTY_BASE_URL` should be set to the public URL used for generated QR codes. `SHORTY_GEOIP_DB` can point to a mounted local GeoIP CSV when country analytics are enabled.
 
+For complete production deployment, backup, update, and rollback procedures, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Local country database
 
 Shorty can resolve visitor countries without calling a third-party geolocation API. Set `SHORTY_GEOIP_DB` to a local CSV file containing CIDR ranges and ISO country codes:
