@@ -38,7 +38,7 @@ func main() {
 		log.Printf("local geoip database loaded from %s", cfg.GeoIPDB)
 	}
 
-	srv := server.NewWithRepositoryAndAnalyticsAndGeoIP(cfg, repo, recorder, geo)
+	srv := server.NewWithRepositoryAndAnalyticsAndGeoIPAndDB(cfg, repo, recorder, geo, db.DB)
 
 	log.Printf("shorty listening on %s", cfg.Address)
 	if err := http.ListenAndServe(cfg.Address, srv.Handler()); err != nil {
