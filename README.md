@@ -94,6 +94,30 @@ Optional `size` controls the requested image size. The server returns `image/png
 
 When `SHORTY_BASE_URL` is configured, that public URL is used as the QR destination. Otherwise the server derives the URL from the incoming request host and scheme.
 
+## UTM builder
+
+Build a campaign URL without modifying the original destination through:
+
+```text
+POST /api/v1/utm
+Content-Type: application/json
+```
+
+Example request:
+
+```json
+{
+  "url": "https://example.com/docs?ref=home",
+  "utm_source": "newsletter",
+  "utm_medium": "email",
+  "utm_campaign": "fall-launch",
+  "utm_term": "short links",
+  "utm_content": "hero button"
+}
+```
+
+The response is JSON containing the generated URL. Existing query parameters are preserved, UTM values are URL-encoded, and empty UTM fields are ignored. Only absolute `http` and `https` URLs are accepted.
+
 ## Local country database
 
 Shorty can resolve visitor countries without calling a third-party geolocation API. Set `SHORTY_GEOIP_DB` to a local CSV file containing CIDR ranges and ISO country codes:
