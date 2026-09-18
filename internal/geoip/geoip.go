@@ -45,7 +45,7 @@ func LoadCSV(r io.Reader) (*Database, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read geoip database line %d: %w", line, err)
 		}
-		if len(record) == 0 || (len(record) > 0 && strings.HasPrefix(strings.TrimSpace(record[0]), "#")) {
+		if len(record) == 0 || strings.HasPrefix(strings.TrimSpace(record[0]), "#") {
 			continue
 		}
 		if len(record) < 2 {
@@ -60,7 +60,11 @@ func LoadCSV(r io.Reader) (*Database, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid geoip CIDR on line %d: %w", line, err)
 		}
-		insert(db.root(prefix.Addr()), prefix, country)
+		root := db.root6
+		if prefix.Addr().Is4() {
+			root = db.root4
+		}
+		insert(root, prefix, country)
 	}
 	return db, nil
 }
