@@ -7,6 +7,7 @@ import (
 	"github.com/UsmanXTech/shorty/internal/api"
 	"github.com/UsmanXTech/shorty/internal/config"
 	"github.com/UsmanXTech/shorty/internal/links"
+	"github.com/UsmanXTech/shorty/internal/redirect"
 )
 
 type Server struct {
@@ -26,6 +27,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
 	api.NewLinkAPI(s.repo).Routes(mux)
+	mux.Handle("GET /{slug}", redirect.New(s.repo))
 	return mux
 }
 
