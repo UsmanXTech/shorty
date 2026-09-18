@@ -82,6 +82,18 @@ View analytics:
 
 See [cmd/shorty-cli/README.md](cmd/shorty-cli/README.md) for all CLI options and examples.
 
+## QR codes
+
+The API generates a PNG QR code for any existing link:
+
+```text
+GET /api/v1/links/{id}/qr
+```
+
+Optional `size` controls the requested image size. The server returns `image/png` and rejects invalid sizes with a `400` response. The dashboard's **Open QR** and per-link **QR** actions use this endpoint directly.
+
+When `SHORTY_BASE_URL` is configured, that public URL is used as the QR destination. Otherwise the server derives the URL from the incoming request host and scheme.
+
 ## Local country database
 
 Shorty can resolve visitor countries without calling a third-party geolocation API. Set `SHORTY_GEOIP_DB` to a local CSV file containing CIDR ranges and ISO country codes:
