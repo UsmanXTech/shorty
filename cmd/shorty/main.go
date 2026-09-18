@@ -9,6 +9,7 @@ import (
 	"github.com/UsmanXTech/shorty/internal/analytics"
 	"github.com/UsmanXTech/shorty/internal/config"
 	"github.com/UsmanXTech/shorty/internal/database"
+	"github.com/UsmanXTech/shorty/internal/geoip"
 	"github.com/UsmanXTech/shorty/internal/links"
 	"github.com/UsmanXTech/shorty/internal/server"
 )
@@ -26,7 +27,18 @@ func main() {
 	repo := links.NewSQLiteRepository(db.DB)
 	recorder := analytics.New(analytics.NewSQLiteStore(db.DB), 256)
 	defer recorder.Close(context.Background())
-	srv := server.NewWithRepositoryAndAnalytics(cfg, repo, recorder)
+
+	var geo *geoip.Database
+	if cfg.GeoIPDB != "" {
+		geo, err = geoip.Open(cfg.GeoIPDB)
+		if err != nil {
+			log.Printf("geoip startup failed: %v", err)
+			os.Exit(1)
+		}
+		log.Printf("local geoip database loaded from %s", cfg.GeoIPDB)
+	}
+
+	srv := server.NewWithRepositoryAndAnalyticsAndGeoIP(cfg, repo, recorder, geo)
 
 	log.Printf("shorty listening on %s", cfg.Address)
 	if err := http.ListenAndServe(cfg.Address, srv.Handler()); err != nil {
