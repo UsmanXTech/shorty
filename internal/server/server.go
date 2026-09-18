@@ -8,6 +8,7 @@ import (
 	"github.com/UsmanXTech/shorty/internal/api"
 	"github.com/UsmanXTech/shorty/internal/cache"
 	"github.com/UsmanXTech/shorty/internal/config"
+	"github.com/UsmanXTech/shorty/internal/geoip"
 	"github.com/UsmanXTech/shorty/internal/links"
 	"github.com/UsmanXTech/shorty/internal/redirect"
 )
@@ -17,6 +18,7 @@ type Server struct {
 	repo      links.Repository
 	linkCache *cache.Cache
 	analytics *analytics.Recorder
+	geo       *geoip.Database
 }
 
 func New(cfg config.Config) *Server {
@@ -31,11 +33,15 @@ func NewWithRepositoryAndAnalytics(cfg config.Config, repo links.Repository, rec
 	return &Server{cfg: cfg, repo: repo, linkCache: cache.New(), analytics: recorder}
 }
 
+func NewWithRepositoryAndAnalyticsAndGeoIP(cfg config.Config, repo links.Repository, recorder *analytics.Recorder, geo *geoip.Database) *Server {
+	return &Server{cfg: cfg, repo: repo, linkCache: cache.New(), analytics: recorder, geo: geo}
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
 	api.NewLinkAPIWithCache(s.repo, s.linkCache).Routes(mux)
-	mux.Handle("GET /{slug}", redirect.NewWithAnalytics(s.repo, s.linkCache, s.analytics))
+	mux.Handle("GET /{slug}", redirect.NewWithAnalyticsAndGeoIP(s.repo, s.linkCache, s.analytics, s.geo))
 	return mux
 }
 
