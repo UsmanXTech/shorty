@@ -4,7 +4,7 @@ A self-hosted URL shortener focused on simplicity, speed, privacy-friendly analy
 
 ## Vision
 
-Single binary. Zero external dependencies. Deploy in under 60 seconds. Useful analytics.
+Single binary. Zero external runtime APIs. Deploy in under 60 seconds. Useful analytics.
 
 ## Planned stack
 
@@ -22,7 +22,7 @@ Single binary. Zero external dependencies. Deploy in under 60 seconds. Useful an
 - Fast redirects with memory cache
 - Click analytics
 - Referrer, device, browser, timestamp
-- Rough country analytics using a local IP database
+- Country analytics using a local offline IP database
 - Link expiration by date or click count
 - Dashboard with search, filtering, and charts
 - REST API
@@ -30,6 +30,21 @@ Single binary. Zero external dependencies. Deploy in under 60 seconds. Useful an
 - CLI
 - Docker deployment
 - CI
+
+## Local country database
+
+Shorty can resolve visitor countries without calling a third-party geolocation API. Set `SHORTY_GEOIP_DB` to a local CSV file containing CIDR ranges and ISO country codes:
+
+```csv
+# CIDR,country code
+1.0.0.0/8,AU
+8.0.0.0/8,US
+2001:db8::/32,ZZ
+```
+
+The database is loaded at startup and lookups happen locally during redirects. If `SHORTY_GEOIP_DB` is not set, country analytics remain empty and redirects continue normally.
+
+The IP database itself is intentionally not bundled by Shorty; operators should supply a legally licensed dataset appropriate for their deployment.
 
 ## Roadmap
 
