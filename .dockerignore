@@ -1,0 +1,10 @@
+.git
+.github
+.gitignore
+*.db
+*.db-shm
+*.db-wal
+bin
+coverage.out
+coverage.html
+.DS_Store
