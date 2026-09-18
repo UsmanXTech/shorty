@@ -9,6 +9,8 @@ import (
 type Event struct {
 	Slug      string
 	CreatedAt time.Time
+	Referrer  string
+	UserAgent string
 }
 
 type Store interface {
@@ -18,8 +20,8 @@ type Store interface {
 type Recorder struct {
 	store Store
 	queue chan Event
-	wg sync.WaitGroup
-	once sync.Once
+	wg    sync.WaitGroup
+	once  sync.Once
 }
 
 func New(store Store, bufferSize int) *Recorder {
