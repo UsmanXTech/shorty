@@ -9,6 +9,7 @@ import (
 	"github.com/UsmanXTech/shorty/internal/api"
 	"github.com/UsmanXTech/shorty/internal/cache"
 	"github.com/UsmanXTech/shorty/internal/config"
+	"github.com/UsmanXTech/shorty/internal/dashboard"
 	"github.com/UsmanXTech/shorty/internal/geoip"
 	"github.com/UsmanXTech/shorty/internal/links"
 	"github.com/UsmanXTech/shorty/internal/redirect"
@@ -45,6 +46,7 @@ func NewWithRepositoryAndAnalyticsAndGeoIPAndDB(cfg config.Config, repo links.Re
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("GET /", dashboard.Handler())
 	mux.HandleFunc("GET /health", s.health)
 	api.NewLinkAPIWithCache(s.repo, s.linkCache).Routes(mux)
 	if s.db != nil {
