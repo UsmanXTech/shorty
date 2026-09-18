@@ -4,20 +4,28 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/UsmanXTech/shorty/internal/api"
 	"github.com/UsmanXTech/shorty/internal/config"
+	"github.com/UsmanXTech/shorty/internal/links"
 )
 
 type Server struct {
-	cfg config.Config
+	cfg  config.Config
+	repo links.Repository
 }
 
 func New(cfg config.Config) *Server {
-	return &Server{cfg: cfg}
+	return NewWithRepository(cfg, links.NewMemoryRepository())
+}
+
+func NewWithRepository(cfg config.Config, repo links.Repository) *Server {
+	return &Server{cfg: cfg, repo: repo}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
+	api.NewLinkAPI(s.repo).Routes(mux)
 	return mux
 }
 
