@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -29,11 +31,26 @@ jobs:
         run: go mod download
 
       - name: Check formatting
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
-          files="$(gofmt -l .)"
-          if [ -n "$files" ]; then
-            echo "The following files are not gofmt-formatted:"
-            echo "$files"
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-list --max-parents=1 HEAD)"
+          fi
+
+          mapfile -t go_files < <(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.go')
+          unformatted=()
+
+          for file in "${go_files[@]}"; do
+            [ -f "$file" ] || continue
+            if [ -n "$(gofmt -l "$file")" ]; then
+              unformatted+=("$file")
+            fi
+          done
+
+          if [ "${#unformatted[@]}" -gt 0 ]; then
+            echo "The following changed Go files are not gofmt-formatted:"
+            printf '%s\n' "${unformatted[@]}"
             exit 1
           fi
 
