@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -19,6 +20,7 @@ type Server struct {
 	linkCache *cache.Cache
 	analytics *analytics.Recorder
 	geo       *geoip.Database
+	db        *sql.DB
 }
 
 func New(cfg config.Config) *Server {
@@ -37,10 +39,17 @@ func NewWithRepositoryAndAnalyticsAndGeoIP(cfg config.Config, repo links.Reposit
 	return &Server{cfg: cfg, repo: repo, linkCache: cache.New(), analytics: recorder, geo: geo}
 }
 
+func NewWithRepositoryAndAnalyticsAndGeoIPAndDB(cfg config.Config, repo links.Repository, recorder *analytics.Recorder, geo *geoip.Database, db *sql.DB) *Server {
+	return &Server{cfg: cfg, repo: repo, linkCache: cache.New(), analytics: recorder, geo: geo, db: db}
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
 	api.NewLinkAPIWithCache(s.repo, s.linkCache).Routes(mux)
+	if s.db != nil {
+		api.NewAnalyticsAPI(s.repo, analytics.NewQueryStore(s.db)).Routes(mux)
+	}
 	mux.Handle("GET /{slug}", redirect.NewWithAnalyticsAndGeoIP(s.repo, s.linkCache, s.analytics, s.geo))
 	return mux
 }
