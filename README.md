@@ -54,6 +54,34 @@ The container runs the single Shorty binary as a non-root user. SQLite is stored
 
 For complete production deployment, backup, update, and rollback procedures, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
+## CLI
+
+The `shorty-cli` binary uses the same REST API as the web application, so it does not need direct access to the SQLite database. Build it with:
+
+```bash
+go build -o shorty-cli ./cmd/shorty-cli
+```
+
+Set `SHORTY_URL` when the server is not at the default `http://localhost:8080`:
+
+```bash
+export SHORTY_URL=https://short.example.com
+```
+
+Create a link:
+
+```bash
+./shorty-cli create --url https://example.com --slug docs
+```
+
+View analytics:
+
+```bash
+./shorty-cli stats --id 1 --interval day
+```
+
+See [cmd/shorty-cli/README.md](cmd/shorty-cli/README.md) for all CLI options and examples.
+
 ## Local country database
 
 Shorty can resolve visitor countries without calling a third-party geolocation API. Set `SHORTY_GEOIP_DB` to a local CSV file containing CIDR ranges and ISO country codes:
