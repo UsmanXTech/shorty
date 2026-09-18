@@ -1,0 +1,24 @@
+services:
+  shorty:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SHORTY_ADDR: ":8080"
+      SHORTY_DB: "/data/shorty.db"
+      SHORTY_BASE_URL: "${SHORTY_BASE_URL:-http://localhost:8080}"
+      SHORTY_GEOIP_DB: "${SHORTY_GEOIP_DB:-}"
+    volumes:
+      - shorty-data:/data
+      # Optional local GeoIP CSV database:
+      # - ./data/geoip.csv:/data/geoip.csv:ro
+    healthcheck:
+      test: ["CMD", "/busybox/wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  shorty-data:
