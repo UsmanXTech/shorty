@@ -9,6 +9,6 @@ type Link struct {
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
-	MaxClicks *int64     `json:"max_clicks,omitempty"`
-	Clicks    int64      `json:"clicks"`
+	MaxClicks  *int64     `json:"max_clicks,omitempty"`
+	Clicks     int64      `json:"clicks"`
 }
