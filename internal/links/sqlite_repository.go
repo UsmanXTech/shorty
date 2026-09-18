@@ -17,9 +17,9 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 
 func (r *SQLiteRepository) Create(link Link) (Link, error) {
 	_, err := r.db.Exec(
-		"INSERT INTO links (slug, url, created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+		"INSERT INTO links (slug, url, created_at, updated_at, expires_at, max_clicks) VALUES (?, ?, ?, ?, ?, ?)",
 		link.Slug, link.URL, link.CreatedAt.UTC().Format(time.RFC3339Nano),
-		link.UpdatedAt.UTC().Format(time.RFC3339Nano), formatTime(link.ExpiresAt),
+		link.UpdatedAt.UTC().Format(time.RFC3339Nano), formatTime(link.ExpiresAt), link.MaxClicks,
 	)
 	if err != nil {
 		if isConstraint(err) {
@@ -31,7 +31,7 @@ func (r *SQLiteRepository) Create(link Link) (Link, error) {
 }
 
 func (r *SQLiteRepository) List() ([]Link, error) {
-	rows, err := r.db.Query("SELECT id, slug, url, created_at, updated_at, expires_at FROM links ORDER BY id DESC")
+	rows, err := r.db.Query("SELECT id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks FROM links ORDER BY id DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +62,9 @@ func (r *SQLiteRepository) GetBySlug(slug string) (Link, error) {
 
 func (r *SQLiteRepository) Update(link Link) (Link, error) {
 	result, err := r.db.Exec(
-		"UPDATE links SET slug = ?, url = ?, updated_at = ?, expires_at = ? WHERE id = ?",
+		"UPDATE links SET slug = ?, url = ?, updated_at = ?, expires_at = ?, max_clicks = ? WHERE id = ?",
 		link.Slug, link.URL, link.UpdatedAt.UTC().Format(time.RFC3339Nano),
-		formatTime(link.ExpiresAt), link.ID,
+		formatTime(link.ExpiresAt), link.MaxClicks, link.ID,
 	)
 	if err != nil {
 		if isConstraint(err) {
@@ -105,8 +105,10 @@ func scanLink(row scanner) (Link, error) {
 	var link Link
 	var created, updated string
 	var expires sql.NullString
+	var maxClicks sql.NullInt64
+	var clicks int64
 
-	if err := row.Scan(&link.ID, &link.Slug, &link.URL, &created, &updated, &expires); err != nil {
+	if err := row.Scan(&link.ID, &link.Slug, &link.URL, &created, &updated, &expires, &maxClicks, &clicks); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Link{}, ErrNotFound
 		}
@@ -122,6 +124,8 @@ func scanLink(row scanner) (Link, error) {
 	if err != nil {
 		return Link{}, err
 	}
+	if maxClicks.Valid { value := maxClicks.Int64; link.MaxClicks = &value }
+	link.Clicks = clicks
 	if expires.Valid && expires.String != "" {
 		value, err := time.Parse(time.RFC3339Nano, expires.String)
 		if err != nil {
@@ -130,6 +134,15 @@ func scanLink(row scanner) (Link, error) {
 		link.ExpiresAt = &value
 	}
 	return link, nil
+}
+
+func (r *SQLiteRepository) IncrementClicks(slug string) (Link, error) {
+	result, err := r.db.Exec(`UPDATE links SET clicks = clicks + 1 WHERE slug = ? AND (max_clicks IS NULL OR clicks < max_clicks)`, slug)
+	if err != nil { return Link{}, err }
+	n, err := result.RowsAffected()
+	if err != nil { return Link{}, err }
+	if n == 0 { return Link{}, ErrNotFound }
+	return r.GetBySlug(slug)
 }
 
 func formatTime(value *time.Time) any {
