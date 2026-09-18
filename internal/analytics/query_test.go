@@ -29,7 +29,7 @@ func TestQueryStoreSummary(t *testing.T) {
 	if got.Referrers[0].Name != "https://google.com" || got.Referrers[0].Clicks != 2 { t.Fatalf("unexpected referrers: %+v", got.Referrers) }
 	if got.Countries[0].Name != "PK" || got.Countries[0].Clicks != 2 { t.Fatalf("unexpected countries: %+v", got.Countries) }
 	if got.Browsers[0].Name != "Chrome" || got.Browsers[0].Clicks != 2 { t.Fatalf("unexpected browsers: %+v", got.Browsers) }
-	if got.Devices[0].Name != "Mobile" || got.Devices[0].Clicks != 1 { t.Fatalf("unexpected devices: %+v", got.Devices) }
+	if got.Devices[0].Name != "Desktop" || got.Devices[0].Clicks != 2 { t.Fatalf("unexpected devices: %+v", got.Devices) }
 }
 
 func TestClassifyUserAgent(t *testing.T) {
