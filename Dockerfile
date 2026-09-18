@@ -1,5 +1,5 @@
-# Build the single Shorty binary with a reproducible Go toolchain.
-FROM golang:1.24-bookworm AS build
+# Build the single Shorty binary with the Go version declared by go.mod.
+FROM golang:1.25-bookworm AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -8,7 +8,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/shorty ./cmd/shorty
 
 # Minimal production runtime. Shorty persists SQLite data under /data.
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 
 WORKDIR /app
 COPY --from=build /out/shorty /app/shorty
