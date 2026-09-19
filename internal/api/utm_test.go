@@ -1,11 +1,16 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+type utmTestResponse struct {
+	URL string `json:"url"`
+}
 
 func TestUTMAPI(t *testing.T) {
 	mux := http.NewServeMux()
@@ -17,9 +22,14 @@ func TestUTMAPI(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-	want := `{"url":"https://example.com/docs?utm_campaign=spring+launch&utm_medium=cpc&utm_source=google&x=1"}`
-	if strings.TrimSpace(rec.Body.String()) != want {
-		t.Fatalf("body = %q, want %q", strings.TrimSpace(rec.Body.String()), want)
+
+	var got utmTestResponse
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	want := "https://example.com/docs?utm_campaign=spring+launch&utm_medium=cpc&utm_source=google&x=1"
+	if got.URL != want {
+		t.Fatalf("url = %q, want %q", got.URL, want)
 	}
 }
 
