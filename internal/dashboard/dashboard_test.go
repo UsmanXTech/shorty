@@ -19,10 +19,10 @@ func TestHandlerServesDashboard(t *testing.T) {
 		t.Fatalf("content type = %q, want text/html", got)
 	}
 	body := res.Body.String()
-	if !strings.Contains(body, "Shorty Dashboard") {
+	if !strings.Contains(body, "Shorty · Analytics Dashboard") {
 		t.Fatal("dashboard title missing")
 	}
-	for _, heading := range []string{"Click activity", "Referrers", "Countries", "Browsers", "Devices"} {
+	for _, heading := range []string{"Click activity", "Top referrers", "Countries", "Browsers", "Devices"} {
 		if !strings.Contains(body, ">"+heading+"<") {
 			t.Fatalf("dashboard heading %q missing", heading)
 		}

@@ -37,7 +37,7 @@ func TestDashboard(t *testing.T) {
 	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
 		t.Fatalf("unexpected content type: %q", got)
 	}
-	if !strings.Contains(rec.Body.String(), "Shorty Dashboard") {
+	if !strings.Contains(rec.Body.String(), "Shorty · Analytics Dashboard") {
 		t.Fatal("dashboard title missing")
 	}
 }
