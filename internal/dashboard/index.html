@@ -1,14 +1,104 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shorty Dashboard</title>
-<style>body{font:15px system-ui,sans-serif;margin:0;background:#f6f7f9;color:#18202a}main{max-width:1100px;margin:auto;padding:28px}h1{margin:0 0 18px}.cards,.grid{display:grid;gap:14px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:14px}.card{background:#fff;border:1px solid #e1e5ea;border-radius:12px;padding:18px;box-shadow:0 1px 2px #0000000d}.big{font-size:30px;font-weight:700}.muted{color:#697386}.chart{height:240px;display:flex;align-items:end;gap:4px;border-bottom:1px solid #ccd2d9;padding:12px 0}.bar{flex:1;min-width:4px;background:#52606d;border-radius:4px 4px 0 0}.bars{display:grid;gap:10px}.row{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;align-items:center}.track{height:9px;background:#e8ebef;border-radius:99px;overflow:hidden}.fill{height:100%;background:#52606d}.controls{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}select,button{padding:9px 12px;border:1px solid #cbd1d8;border-radius:8px;background:#fff}button{cursor:pointer}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qr{padding:6px 9px}@media(max-width:700px){.cards,.grid{grid-template-columns:1fr}main{padding:18px}th:nth-child(2),td:nth-child(2){display:none}}</style></head>
-<body><main><h1>Shorty Dashboard</h1><div class="controls"><select id="link"><option>Loading links…</option></select><select id="interval"><option value="day">Daily</option><option value="hour">Hourly</option></select><button id="qr" type="button">Open QR</button><button id="refresh" type="button">Refresh</button></div><section class="cards"><div class="card"><div class="muted">Lifetime clicks</div><div class="big" id="lifetime">—</div></div><div class="card"><div class="muted">Clicks in range</div><div class="big" id="range">—</div></div></section><section class="card" style="margin-top:14px"><h2>Click activity</h2><div class="chart" id="chart"></div></section><section class="grid"><div class="card"><h2>Referrers</h2><div class="bars" id="referrers"></div></div><div class="card"><h2>Countries</h2><div class="bars" id="countries"></div></div><div class="card"><h2>Browsers</h2><div class="bars" id="browsers"></div></div><div class="card"><h2>Devices</h2><div class="bars" id="devices"></div></div></section><section class="card" style="margin-top:14px"><h2>Recent links</h2><table><thead><tr><th>Slug</th><th>Destination</th><th>Clicks</th><th>Created</th><th>QR</th></tr></thead><tbody id="links"></tbody></table></section></main>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shorty · Analytics Dashboard</title>
+<style>
+:root{--bg:#f3f5fa;--card:#ffffff;--ink:#0f172a;--muted:#64748b;--line:#e6eaf2;--indigo:#4f46e5;--violet:#7c3aed;--emerald:#10b981;--amber:#f59e0b;--rose:#f43f5e;--sky:#0ea5e9;--radius:16px;--shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px -12px rgba(15,23,42,.12)}
+*{box-sizing:border-box}body{font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 45%,#4c1d95 100%);color:#fff;padding:34px 0 90px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 200px at 80% 0%,rgba(255,255,255,.14),transparent 60%);pointer-events:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px;position:relative}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.brand h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.brand p{margin:2px 0 0;font-size:13px;color:#c7d2fe}
+.hero h2{margin:26px 0 6px;font-size:32px;font-weight:800;letter-spacing:-.03em}
+.hero .sub{margin:0;color:#c7d2fe;font-size:15px;max-width:640px}
+main.wrap{margin-top:-56px;padding-bottom:60px}
+.toolbar{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+select,button{font:inherit;padding:10px 14px;border:1px solid #d4dae5;border-radius:10px;background:#fff;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+select:focus,button:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+select{max-width:340px;text-overflow:ellipsis}
+button{cursor:pointer;font-weight:600}
+button.primary{background:linear-gradient(135deg,var(--indigo),var(--violet));border:none;color:#fff;box-shadow:0 4px 12px -4px rgba(79,70,229,.5)}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost:hover{border-color:var(--indigo);color:var(--indigo)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--indigo))}
+.stat .label{font-size:12.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.stat .value{font-size:34px;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+.stat .icon{position:absolute;right:14px;top:14px;font-size:22px;opacity:.85}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;margin-top:18px}
+.card h2{margin:0 0 4px;font-size:17px;font-weight:750;letter-spacing:-.01em}
+.card .hint{margin:0 0 14px;font-size:13px;color:var(--muted)}
+.chart{height:250px;display:flex;align-items:flex-end;gap:5px;padding:14px 4px 0;border-bottom:1px solid var(--line);position:relative}
+.bar{flex:1;min-width:5px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--violet),var(--indigo));opacity:.92;transition:opacity .15s;min-height:4px}
+.bar:hover{opacity:1;filter:brightness(1.12)}
+.chart-empty{color:var(--muted);padding:40px 0;text-align:center;width:100%}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.bars{display:grid;gap:12px}
+.brow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:14px}
+.brow b{font-variant-numeric:tabular-nums}
+.brow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#334155}
+.track{height:8px;background:#eef1f7;border-radius:99px;overflow:hidden}
+.fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--indigo),var(--violet))}
+#referrers .fill{background:linear-gradient(90deg,#0ea5e9,#6366f1)}
+#countries .fill{background:linear-gradient(90deg,#10b981,#0ea5e9)}
+#browsers .fill{background:linear-gradient(90deg,#f59e0b,#f43f5e)}
+#devices .fill{background:linear-gradient(90deg,#7c3aed,#db2777)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 12px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line)}
+td{padding:12px;border-bottom:1px solid #f1f4f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:#f8faff}
+tbody tr:last-child td{border-bottom:none}
+.pill{display:inline-block;min-width:44px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;background:#eef2ff;color:var(--indigo);border-radius:99px;padding:3px 12px;font-size:13px}
+.slug{font-weight:650;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;color:#3730a3}
+.qrbtn{padding:6px 14px;font-size:13px}
+.live{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:#047857;background:#d1fae5;border-radius:99px;padding:4px 12px;margin-left:10px;vertical-align:middle}
+.live i{width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:26px 0 8px}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}
+@media(max-width:560px){.stats{grid-template-columns:1fr}.hero h2{font-size:26px}th:nth-child(2),td:nth-child(2){display:none}.wrap{padding:0 16px}}
+</style></head>
+<body>
+<header class="hero"><div class="wrap">
+<div class="brand"><div class="logo">⚡</div><div><h1>Shorty</h1><p>Link analytics platform</p></div></div>
+<h2>Analytics dashboard <span class="live"><i></i>LIVE</span></h2>
+<p class="sub">Track every click in real time — referrers, geography, browsers and devices, all in one place.</p>
+</div></header>
+<main class="wrap">
+<div class="toolbar">
+<select id="link" aria-label="Select link"><option>Loading links…</option></select>
+<select id="interval" aria-label="Bucket interval"><option value="day">Daily</option><option value="hour">Hourly</option></select>
+<button id="qr" type="button" class="ghost">Open QR</button>
+<button id="refresh" type="button" class="primary">↻ Refresh</button>
+</div>
+<section class="stats">
+<div class="stat" style="--accent:#4f46e5"><div class="icon">👆</div><div class="label">Lifetime clicks</div><div class="value" id="lifetime">—</div></div>
+<div class="stat" style="--accent:#0ea5e9"><div class="icon">📊</div><div class="label">Clicks in range</div><div class="value" id="range">—</div></div>
+<div class="stat" style="--accent:#10b981"><div class="icon">🔗</div><div class="label">Total links</div><div class="value" id="totalLinks">—</div></div>
+<div class="stat" style="--accent:#f59e0b"><div class="icon">🌐</div><div class="label">Top referrer</div><div class="value" id="topReferrer" style="font-size:22px;line-height:1.3">—</div></div>
+</section>
+<section class="card"><h2>Click activity</h2><p class="hint">Clicks per bucket for the selected link over the last 7 days.</p><div class="chart" id="chart"></div></section>
+<section class="grid">
+<div class="card"><h2>Top referrers</h2><p class="hint">Where your traffic comes from.</p><div class="bars" id="referrers"></div></div>
+<div class="card"><h2>Countries</h2><p class="hint">Geographic distribution of clicks.</p><div class="bars" id="countries"></div></div>
+<div class="card"><h2>Browsers</h2><p class="hint">Browsers your visitors use.</p><div class="bars" id="browsers"></div></div>
+<div class="card"><h2>Devices</h2><p class="hint">Desktop vs mobile vs tablet.</p><div class="bars" id="devices"></div></div>
+</section>
+<section class="card"><h2>Recent links</h2><p class="hint">Your latest shortened links and their performance.</p><table><thead><tr><th>Slug</th><th>Destination</th><th>Clicks</th><th>Created</th><th>QR</th></tr></thead><tbody id="links"></tbody></table></section>
+<footer>Shorty Analytics · Data refreshes on demand</footer>
+</main>
 <script>
 const $=id=>document.getElementById(id);let links=[];
-async function loadLinks(){const r=await fetch('/api/v1/links');if(!r.ok)throw Error('Could not load links');links=await r.json();$('link').innerHTML=links.map(x=>`<option value="${x.id}">${esc(x.slug)} — ${esc(x.url)}</option>`).join('')||'<option>No links</option>';$('links').innerHTML=links.slice().reverse().slice(0,20).map(x=>`<tr><td>${esc(x.slug)}</td><td title="${esc(x.url)}">${esc(x.url)}</td><td>${x.clicks||0}</td><td>${new Date(x.created_at).toLocaleString()}</td><td><button class="qr" type="button" onclick="openQR(${Number(x.id)})">QR</button></td></tr>`).join('');if(links.length)await loadAnalytics();}
-async function loadAnalytics(){const id=$('link').value;if(!id)return;const q=new URLSearchParams({interval:$('interval').value});q.set('from',new Date(Date.now()-7*864e5).toISOString());q.set('to',new Date(Date.now()+60e3).toISOString());const r=await fetch(`/api/v1/links/${encodeURIComponent(id)}/analytics?${q}`);if(!r.ok)throw Error('Could not load analytics');const d=await r.json();$('lifetime').textContent=d.lifetime_clicks||0;$('range').textContent=d.clicks_in_range||0;drawChart(d.buckets||[]);drawBreakdown('referrers',d.referrers||[]);drawBreakdown('countries',d.countries||[]);drawBreakdown('browsers',d.browsers||[]);drawBreakdown('devices',d.devices||[]);}
+async function loadLinks(){const r=await fetch('/api/v1/links');if(!r.ok)throw Error('Could not load links');links=await r.json();$('link').innerHTML=links.map(x=>`<option value="${x.id}">${esc(x.slug)} — ${esc(x.url)}</option>`).join('')||'<option>No links</option>';$('totalLinks').textContent=links.length;$('links').innerHTML=links.slice().reverse().slice(0,20).map(x=>`<tr><td><span class="slug">${esc(x.slug)}</span></td><td title="${esc(x.url)}">${esc(x.url)}</td><td><span class="pill">${x.clicks||0}</span></td><td>${new Date(x.created_at).toLocaleString()}</td><td><button class="qrbtn ghost" type="button" onclick="openQR(${Number(x.id)})">QR</button></td></tr>`).join('');if(links.length)await loadAnalytics();}
+async function loadAnalytics(){const id=$('link').value;if(!id)return;const q=new URLSearchParams({interval:$('interval').value});q.set('from',new Date(Date.now()-7*864e5).toISOString());q.set('to',new Date(Date.now()+60e3).toISOString());const r=await fetch(`/api/v1/links/${encodeURIComponent(id)}/analytics?${q}`);if(!r.ok)throw Error('Could not load analytics');const d=await r.json();$('lifetime').textContent=fmt(d.lifetime_clicks||0);$('range').textContent=fmt(d.clicks_in_range||0);const refs=d.referrers||[];$('topReferrer').textContent=refs.length?shortHost(refs[0].name):'—';drawChart(d.buckets||[]);drawBreakdown('referrers',refs);drawBreakdown('countries',d.countries||[]);drawBreakdown('browsers',d.browsers||[]);drawBreakdown('devices',d.devices||[]);}
 function openQR(id){window.open(`/api/v1/links/${encodeURIComponent(id)}/qr`, '_blank', 'noopener,noreferrer');}
-function drawChart(a){const max=Math.max(1,...a.map(x=>x.clicks));$('chart').innerHTML=a.map(x=>`<div class="bar" style="height:${Math.max(3,x.clicks/max*100)}%" title="${new Date(x.period).toLocaleString()}: ${x.clicks}"></div>`).join('')||'<span class="muted">No clicks in selected range.</span>';}
-function drawBreakdown(id,a){const max=Math.max(1,...a.map(x=>x.clicks));$(id).innerHTML=a.map(x=>`<div><div class="row"><span>${esc(x.name)}</span><b>${x.clicks}</b></div><div class="track"><div class="fill" style="width:${x.clicks/max*100}%"></div></div></div>`).join('')||'<span class="muted">No data.</span>';}
+function drawChart(a){const max=Math.max(1,...a.map(x=>x.clicks));$('chart').innerHTML=a.map(x=>`<div class="bar" style="height:${Math.max(2,x.clicks/max*100)}%" title="${new Date(x.period).toLocaleString()}: ${x.clicks} clicks"></div>`).join('')||'<div class="chart-empty">No clicks in the selected range yet.</div>';}
+function drawBreakdown(id,a){const max=Math.max(1,...a.map(x=>x.clicks));$(id).innerHTML=a.map(x=>`<div><div class="brow"><span title="${esc(x.name)}">${esc(x.name)}</span><b>${fmt(x.clicks)}</b></div><div class="track"><div class="fill" style="width:${x.clicks/max*100}%"></div></div></div>`).join('')||'<span style="color:var(--muted)">No data yet.</span>';}
+function fmt(n){return Number(n).toLocaleString('en-US');}
+function shortHost(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return u;}}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-$('link').addEventListener('change',loadAnalytics);$('interval').addEventListener('change',loadAnalytics);$('qr').addEventListener('click',()=>{if($('link').value)openQR($('link').value)});$('refresh').addEventListener('click',()=>loadLinks());loadLinks().catch(e=>document.querySelector('main').insertAdjacentHTML('beforeend',`<p class="muted">${esc(e.message)}</p>`));
+$('link').addEventListener('change',loadAnalytics);$('interval').addEventListener('change',loadAnalytics);$('qr').addEventListener('click',()=>{if($('link').value)openQR($('link').value)});$('refresh').addEventListener('click',()=>loadLinks());loadLinks().catch(e=>document.querySelector('main').insertAdjacentHTML('beforeend',`<p style="color:var(--muted)">${esc(e.message)}</p>`));
 </script></body></html>
