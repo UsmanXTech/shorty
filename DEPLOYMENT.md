@@ -72,6 +72,40 @@ docker compose logs --tail=100 shorty
 
 For GeoIP, mount a local CSV read-only and set `SHORTY_GEOIP_DB=/data/geoip.csv` in the Compose environment.
 
+Set `SHORTY_SECRET` to a stable random value (e.g. `export SHORTY_SECRET=$(openssl rand -base64 48)`) so password-unlock cookies survive container restarts.
+
+## Kubernetes deployment
+
+The repository includes ready-to-apply manifests in `k8s/` (plain YAML plus a `kustomization.yaml`). Because Shorty stores data in SQLite — a single-writer database — the Deployment is pinned to **one replica** with the **Recreate** strategy and a `ReadWriteOnce` PersistentVolumeClaim.
+
+Prerequisites: a cluster with a default StorageClass and an ingress controller.
+
+1. Edit the placeholders:
+   - `k8s/deployment.yaml` — set `image:` to your registry/tag (e.g. `ghcr.io/usmanxtech/shorty:v0.2.0`).
+   - `k8s/secret.yaml` — replace `SHORTY_SECRET` with a long random value (`openssl rand -base64 48`). For production, use Sealed Secrets or External Secrets instead.
+   - `k8s/ingress.yaml` and `k8s/configmap.yaml` — set your public hostname in both (`SHORTY_BASE_URL` must match the ingress host for QR codes).
+2. Deploy:
+
+```bash
+kubectl kustomize k8s/   # preview
+kubectl apply -k k8s/
+kubectl -n shorty rollout status deploy/shorty
+```
+
+3. Mint the first admin API key against the live PVC (the image ships `shorty-cli` at `/app/shorty-cli`):
+
+```bash
+kubectl -n shorty exec deploy/shorty -- /app/shorty-cli bootstrap-admin --name ops --db /data/shorty.db
+```
+
+The key prints once — store it as `SHORTY_API_KEY`.
+
+Kubernetes notes:
+
+- Do not raise `replicas` above 1; SQLite cannot take concurrent writers from multiple pods. Migrate to Postgres before scaling horizontally.
+- Back up by snapshotting the `shorty-data` PVC or copying `/data/shorty.db` out of the pod on a schedule.
+- Uncomment the TLS block in `k8s/ingress.yaml` and point it at your cert-manager issuer for HTTPS.
+
 ## Bare-metal deployment
 
 Build the production binary:
@@ -185,5 +219,6 @@ Before production:
 - [ ] Keep at least one known-good application version for rollback.
 - [ ] If using GeoIP, verify the dataset license and mount it read-only.
 - [ ] Test an update and rollback procedure before making a production change.
+- [ ] Kubernetes: set a real `SHORTY_SECRET`, keep `replicas: 1` with the `Recreate` strategy, and schedule PVC snapshots.
 
 After deployment, verify the service is reachable, create a test short link, follow the redirect, and confirm analytics are being recorded as expected.

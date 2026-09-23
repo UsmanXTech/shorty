@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shorty-config
+  namespace: shorty
+  labels:
+    app.kubernetes.io/name: shorty
+data:
+  # HTTP listen address inside the container.
+  SHORTY_ADDR: ":8080"
+  # SQLite database path. Must live on the persistent volume.
+  SHORTY_DB: "/data/shorty.db"
+  # Public base URL used when generating QR codes. Set to your ingress host.
+  SHORTY_BASE_URL: "https://shorty.example.com"
+  # Optional local GeoIP CSV path for country analytics (mount it via an
+  # extra volume if needed).
+  SHORTY_GEOIP_DB: ""

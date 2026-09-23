@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shorty
+  namespace: shorty
+  labels:
+    app.kubernetes.io/name: shorty
+  annotations:
+    # Uncomment and adjust for your ingress controller / TLS setup, e.g.
+    # cert-manager:
+    #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  # Uncomment for TLS:
+  # tls:
+  #   - hosts:
+  #       - shorty.example.com
+  #     secretName: shorty-tls
+  rules:
+    # Replace with your public hostname.
+    - host: shorty.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shorty
+                port:
+                  number: 80

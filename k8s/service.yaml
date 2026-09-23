@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shorty
+  namespace: shorty
+  labels:
+    app.kubernetes.io/name: shorty
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: shorty
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

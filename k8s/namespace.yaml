@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shorty
+  labels:
+    app.kubernetes.io/name: shorty
+    app.kubernetes.io/part-of: shorty

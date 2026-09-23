@@ -9,6 +9,9 @@ services:
       SHORTY_DB: "/data/shorty.db"
       SHORTY_BASE_URL: "${SHORTY_BASE_URL:-http://localhost:8080}"
       SHORTY_GEOIP_DB: "${SHORTY_GEOIP_DB:-}"
+      # Signs password-unlock cookies. Set a stable value (e.g. `openssl rand -base64 48`)
+      # so unlock cookies survive restarts. Never commit a real value.
+      SHORTY_SECRET: "${SHORTY_SECRET:-}"
     volumes:
       - shorty-data:/data
       # Optional local GeoIP CSV database:
