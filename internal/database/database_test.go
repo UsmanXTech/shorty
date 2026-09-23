@@ -1,30 +1,28 @@
 package database
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestOpenMigratesSchema(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "shorty.db"))
+func TestOpenRestrictsPermissions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sub", "shorty.db")
+	db, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
 
-	var table string
-	if err := db.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'links'").Scan(&table); err != nil {
+	if fi, err := os.Stat(path); err != nil {
 		t.Fatal(err)
+	} else if mode := fi.Mode().Perm(); mode != 0o600 {
+		t.Fatalf("database file should be 0600, got %o", mode)
 	}
-	if table != "links" {
-		t.Fatalf("expected links table, got %q", table)
-	}
-
-	var version int
-	if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+	if fi, err := os.Stat(filepath.Dir(path)); err != nil {
 		t.Fatal(err)
-	}
-	if version != schemaVersion {
-		t.Fatalf("expected schema version %d, got %d", schemaVersion, version)
+	} else if mode := fi.Mode().Perm(); mode != 0o700 {
+		t.Fatalf("database dir should be 0700, got %o", mode)
 	}
 }

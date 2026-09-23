@@ -18,7 +18,9 @@ func Open(path string) (*DB, error) {
 		path = "shorty.db"
 	}
 	if dir := filepath.Dir(path); dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		// The database holds password hashes, API key hashes and click
+		// metadata: keep its directory private.
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("create database directory: %w", err)
 		}
 	}
@@ -30,6 +32,12 @@ func Open(path string) (*DB, error) {
 	if _, err := db.Exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;"); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("configure sqlite: %w", err)
+	}
+	// Restrict the database file itself; the driver creates it with the
+	// process umask, so tighten explicitly once it exists.
+	if err := os.Chmod(path, 0o600); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("restrict database file permissions: %w", err)
 	}
 	if err := Migrate(db); err != nil {
 		_ = db.Close()

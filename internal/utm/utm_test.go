@@ -4,11 +4,11 @@ import "testing"
 
 func TestBuildPreservesQueryAndEncodesUTM(t *testing.T) {
 	got, err := Build("https://example.com/path?existing=yes", Params{
-		Source: "newsletter",
-		Medium: "email",
+		Source:   "newsletter",
+		Medium:   "email",
 		Campaign: "fall launch",
-		Term: "short links",
-		Content: "hero button",
+		Term:     "short links",
+		Content:  "hero button",
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -14,8 +14,10 @@ var (
 type Repository interface {
 	Create(Link) (Link, error)
 	List() ([]Link, error)
+	ListByTeam(teamID int64) ([]Link, error)
 	GetByID(int64) (Link, error)
 	GetBySlug(string) (Link, error)
+	GetBySlugAndDomain(slug string, domainID *int64) (Link, error)
 	Update(Link) (Link, error)
 	Delete(int64) error
 	IncrementClicks(string) (Link, error)
@@ -55,6 +57,18 @@ func (r *MemoryRepository) List() ([]Link, error) {
 	return out, nil
 }
 
+func (r *MemoryRepository) ListByTeam(teamID int64) ([]Link, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []Link
+	for _, link := range r.links {
+		if link.TeamID == teamID {
+			out = append(out, link)
+		}
+	}
+	return out, nil
+}
+
 func (r *MemoryRepository) GetByID(id int64) (Link, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -70,6 +84,23 @@ func (r *MemoryRepository) GetBySlug(slug string) (Link, error) {
 	defer r.mu.RUnlock()
 	for _, link := range r.links {
 		if link.Slug == slug {
+			return link, nil
+		}
+	}
+	return Link{}, ErrNotFound
+}
+
+func (r *MemoryRepository) GetBySlugAndDomain(slug string, domainID *int64) (Link, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, link := range r.links {
+		if link.Slug != slug {
+			continue
+		}
+		if domainID == nil && link.DomainID == nil {
+			return link, nil
+		}
+		if domainID != nil && link.DomainID != nil && *domainID == *link.DomainID {
 			return link, nil
 		}
 	}

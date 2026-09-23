@@ -8,7 +8,7 @@ import (
 )
 
 type memoryStore struct {
-	mu sync.Mutex
+	mu     sync.Mutex
 	events []Event
 }
 
@@ -48,4 +48,15 @@ func TestRecorderDropsWhenBufferFull(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_ = r.Close(ctx)
+}
+
+func TestRecordAfterCloseDoesNotPanic(t *testing.T) {
+	r := New(&memoryStore{}, 8)
+	if err := r.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Must drop, not panic: shutdown races with in-flight requests.
+	if r.Record(Event{Slug: "x"}) {
+		t.Fatal("Record after Close should return false")
+	}
 }

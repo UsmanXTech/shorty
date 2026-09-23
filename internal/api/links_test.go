@@ -78,9 +78,13 @@ func TestLinkAPIListSearchAndFilters(t *testing.T) {
 				t.Fatalf("expected %d links, got %d: %+v", len(tc.want), len(got), got)
 			}
 			seen := make(map[string]bool, len(got))
-			for _, link := range got { seen[link.Slug] = true }
+			for _, link := range got {
+				seen[link.Slug] = true
+			}
 			for _, slug := range tc.want {
-				if !seen[slug] { t.Errorf("missing %q in %+v", slug, got) }
+				if !seen[slug] {
+					t.Errorf("missing %q in %+v", slug, got)
+				}
 			}
 		})
 	}
@@ -94,6 +98,8 @@ func TestLinkAPIListRejectsInvalidFilter(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
-		if rec.Code != http.StatusBadRequest { t.Fatalf("%s: expected 400, got %d", path, rec.Code) }
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s: expected 400, got %d", path, rec.Code)
+		}
 	}
 }

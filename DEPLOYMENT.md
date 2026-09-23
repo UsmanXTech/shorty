@@ -19,8 +19,19 @@ Shorty reads these environment variables:
 | `SHORTY_DB` | `shorty.db` | SQLite database path. |
 | `SHORTY_BASE_URL` | empty | Public base URL used when generating QR codes. |
 | `SHORTY_GEOIP_DB` | empty | Local GeoIP CSV path for country analytics. |
+| `SHORTY_SECRET` | random per start | Secret signing password-unlock cookies. Set a stable value so unlock cookies survive restarts. |
 
 Keep the SQLite database and any GeoIP data on persistent storage. Do not put secrets in the repository or image; Shorty currently does not require a runtime secret for its core deployment.
+
+## First-run admin key
+
+Team management and API-key administration require an admin API key, and a fresh database has none. Mint the first one with direct access to the database file:
+
+```bash
+./shorty-cli bootstrap-admin --name ops --db /path/to/shorty.db
+```
+
+The key is printed once — store it as `SHORTY_API_KEY` and use it to create teams and mint further keys. In Docker, run the same command against the persisted database (for example via `docker exec` with the volume mounted, or against a local copy of the file before first start).
 
 ## Docker deployment
 

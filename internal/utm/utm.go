@@ -25,11 +25,11 @@ func Build(raw string, p Params) (string, error) {
 
 	q := u.Query()
 	for key, value := range map[string]string{
-		"utm_source": p.Source,
-		"utm_medium": p.Medium,
+		"utm_source":   p.Source,
+		"utm_medium":   p.Medium,
 		"utm_campaign": p.Campaign,
-		"utm_term": p.Term,
-		"utm_content": p.Content,
+		"utm_term":     p.Term,
+		"utm_content":  p.Content,
 	} {
 		if strings.TrimSpace(value) != "" {
 			q.Set(key, strings.TrimSpace(value))

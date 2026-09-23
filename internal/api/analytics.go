@@ -36,6 +36,10 @@ func (a *AnalyticsAPI) get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not get link")
 		return
 	}
+	if team, ok := teamFromRequest(r); ok && link.TeamID != team.ID {
+		writeError(w, http.StatusNotFound, "link not found")
+		return
+	}
 
 	now := time.Now().UTC()
 	from := now.Add(-7 * 24 * time.Hour)

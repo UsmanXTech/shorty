@@ -15,11 +15,14 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	return &SQLiteRepository{db: db}
 }
 
+const linkColumns = "id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks, password_hash, team_id, domain_id"
+
 func (r *SQLiteRepository) Create(link Link) (Link, error) {
 	_, err := r.db.Exec(
-		"INSERT INTO links (slug, url, created_at, updated_at, expires_at, max_clicks) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO links (slug, url, created_at, updated_at, expires_at, max_clicks, password_hash, team_id, domain_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		link.Slug, link.URL, link.CreatedAt.UTC().Format(time.RFC3339Nano),
 		link.UpdatedAt.UTC().Format(time.RFC3339Nano), formatTime(link.ExpiresAt), link.MaxClicks,
+		nullString(link.PasswordHash), teamOrDefault(link.TeamID), nullInt64(link.DomainID),
 	)
 	if err != nil {
 		if isConstraint(err) {
@@ -31,12 +34,28 @@ func (r *SQLiteRepository) Create(link Link) (Link, error) {
 }
 
 func (r *SQLiteRepository) List() ([]Link, error) {
-	rows, err := r.db.Query("SELECT id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks FROM links ORDER BY id DESC")
+	return r.queryLinks("SELECT " + linkColumns + " FROM links ORDER BY id DESC")
+}
+
+func (r *SQLiteRepository) ListByTeam(teamID int64) ([]Link, error) {
+	rows, err := r.db.Query("SELECT "+linkColumns+" FROM links WHERE team_id = ? ORDER BY id DESC", teamID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	return scanAllLinks(rows)
+}
 
+func (r *SQLiteRepository) queryLinks(query string, args ...any) ([]Link, error) {
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanAllLinks(rows)
+}
+
+func scanAllLinks(rows *sql.Rows) ([]Link, error) {
 	var result []Link
 	for rows.Next() {
 		link, err := scanLink(rows)
@@ -50,21 +69,33 @@ func (r *SQLiteRepository) List() ([]Link, error) {
 
 func (r *SQLiteRepository) GetByID(id int64) (Link, error) {
 	return scanLink(r.db.QueryRow(
-		"SELECT id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks FROM links WHERE id = ?", id,
+		"SELECT "+linkColumns+" FROM links WHERE id = ?", id,
 	))
 }
 
 func (r *SQLiteRepository) GetBySlug(slug string) (Link, error) {
 	return scanLink(r.db.QueryRow(
-		"SELECT id, slug, url, created_at, updated_at, expires_at, max_clicks, clicks FROM links WHERE slug = ?", slug,
+		"SELECT "+linkColumns+" FROM links WHERE slug = ?", slug,
+	))
+}
+
+func (r *SQLiteRepository) GetBySlugAndDomain(slug string, domainID *int64) (Link, error) {
+	if domainID == nil {
+		return scanLink(r.db.QueryRow(
+			"SELECT "+linkColumns+" FROM links WHERE slug = ? AND domain_id IS NULL", slug,
+		))
+	}
+	return scanLink(r.db.QueryRow(
+		"SELECT "+linkColumns+" FROM links WHERE slug = ? AND domain_id = ?", slug, *domainID,
 	))
 }
 
 func (r *SQLiteRepository) Update(link Link) (Link, error) {
 	result, err := r.db.Exec(
-		"UPDATE links SET slug = ?, url = ?, updated_at = ?, expires_at = ?, max_clicks = ? WHERE id = ?",
+		"UPDATE links SET slug = ?, url = ?, updated_at = ?, expires_at = ?, max_clicks = ?, password_hash = ?, team_id = ?, domain_id = ? WHERE id = ?",
 		link.Slug, link.URL, link.UpdatedAt.UTC().Format(time.RFC3339Nano),
-		formatTime(link.ExpiresAt), link.MaxClicks, link.ID,
+		formatTime(link.ExpiresAt), link.MaxClicks, nullString(link.PasswordHash),
+		teamOrDefault(link.TeamID), nullInt64(link.DomainID), link.ID,
 	)
 	if err != nil {
 		if isConstraint(err) {
@@ -107,8 +138,11 @@ func scanLink(row scanner) (Link, error) {
 	var expires sql.NullString
 	var maxClicks sql.NullInt64
 	var clicks int64
+	var passwordHash sql.NullString
+	var teamID sql.NullInt64
+	var domainID sql.NullInt64
 
-	if err := row.Scan(&link.ID, &link.Slug, &link.URL, &created, &updated, &expires, &maxClicks, &clicks); err != nil {
+	if err := row.Scan(&link.ID, &link.Slug, &link.URL, &created, &updated, &expires, &maxClicks, &clicks, &passwordHash, &teamID, &domainID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Link{}, ErrNotFound
 		}
@@ -129,6 +163,18 @@ func scanLink(row scanner) (Link, error) {
 		link.MaxClicks = &value
 	}
 	link.Clicks = clicks
+	if passwordHash.Valid {
+		link.PasswordHash = passwordHash.String
+	}
+	if teamID.Valid {
+		link.TeamID = teamID.Int64
+	} else {
+		link.TeamID = 1
+	}
+	if domainID.Valid {
+		value := domainID.Int64
+		link.DomainID = &value
+	}
 	if expires.Valid && expires.String != "" {
 		value, err := time.Parse(time.RFC3339Nano, expires.String)
 		if err != nil {
@@ -140,18 +186,35 @@ func scanLink(row scanner) (Link, error) {
 }
 
 func (r *SQLiteRepository) IncrementClicks(slug string) (Link, error) {
-	result, err := r.db.Exec(`UPDATE links SET clicks = clicks + 1 WHERE slug = ? AND (max_clicks IS NULL OR clicks < max_clicks)`, slug)
-	if err != nil {
+	// Single round trip: UPDATE ... RETURNING both increments and fetches
+	// the row. The fallback SELECT below only runs when nothing was
+	// updated (missing slug or exhausted click limit).
+	link, err := scanLink(r.db.QueryRow(
+		`UPDATE links SET clicks = clicks + 1 WHERE slug = ? AND (max_clicks IS NULL OR clicks < max_clicks) RETURNING `+linkColumns,
+		slug,
+	))
+	if err == nil {
+		return link, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
 		return Link{}, err
 	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return Link{}, err
-	}
-	if n == 0 {
+	// No row was updated: either the link doesn't exist or its click
+	// limit was already reached. Distinguish the two so callers can
+	// report the right status.
+	var clicks int64
+	var maxClicks sql.NullInt64
+	qerr := r.db.QueryRow(`SELECT clicks, max_clicks FROM links WHERE slug = ?`, slug).Scan(&clicks, &maxClicks)
+	if errors.Is(qerr, sql.ErrNoRows) {
 		return Link{}, ErrNotFound
 	}
-	return r.GetBySlug(slug)
+	if qerr != nil {
+		return Link{}, qerr
+	}
+	if maxClicks.Valid && clicks >= maxClicks.Int64 {
+		return Link{}, ErrClickLimit
+	}
+	return Link{}, ErrNotFound
 }
 
 func formatTime(value *time.Time) any {
@@ -159,6 +222,27 @@ func formatTime(value *time.Time) any {
 		return nil
 	}
 	return value.UTC().Format(time.RFC3339Nano)
+}
+
+func nullString(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func nullInt64(v *int64) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func teamOrDefault(teamID int64) int64 {
+	if teamID <= 0 {
+		return 1
+	}
+	return teamID
 }
 
 func isConstraint(err error) bool {

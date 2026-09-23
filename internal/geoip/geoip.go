@@ -95,6 +95,9 @@ func (db *Database) Lookup(addr netip.Addr) (string, bool) {
 	if db == nil || !addr.IsValid() {
 		return "", false
 	}
+	// Unmap IPv4-mapped IPv6 addresses (e.g. ::ffff:1.2.3.4) so they match
+	// the v4 trie instead of walking the v6 trie and missing.
+	addr = addr.Unmap()
 	root := db.root6
 	var bytes []byte
 	if addr.Is4() {

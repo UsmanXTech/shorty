@@ -1,6 +1,7 @@
 package links
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -52,6 +53,36 @@ func TestSQLiteRepositoryCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := repo.GetByID(got.ID); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestSQLiteIncrementClicksLimitReached(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "shorty.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	repo := NewSQLiteRepository(db.DB)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	max := int64(2)
+	if _, err := repo.Create(Link{Slug: "limited", URL: "https://example.com", CreatedAt: now, UpdatedAt: now, MaxClicks: &max}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := repo.IncrementClicks("limited"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.IncrementClicks("limited"); err != nil {
+		t.Fatal(err)
+	}
+	// Third click hits the limit: must report ErrClickLimit, not ErrNotFound.
+	if _, err := repo.IncrementClicks("limited"); !errors.Is(err, ErrClickLimit) {
+		t.Fatalf("expected ErrClickLimit, got %v", err)
+	}
+	// Unknown slug still reports ErrNotFound.
+	if _, err := repo.IncrementClicks("nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }

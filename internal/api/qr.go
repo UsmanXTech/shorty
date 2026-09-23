@@ -40,6 +40,10 @@ func (a *QRAPI) generate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not get link")
 		return
 	}
+	if team, ok := teamFromRequest(r); ok && link.TeamID != team.ID {
+		writeError(w, http.StatusNotFound, "link not found")
+		return
+	}
 
 	size := qr.DefaultSize
 	if raw := strings.TrimSpace(r.URL.Query().Get("size")); raw != "" {
