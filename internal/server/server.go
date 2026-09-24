@@ -107,6 +107,7 @@ func (s *Server) Handler() http.Handler {
 	api.NewUTMAPI().Routes(mux)
 	if s.db != nil {
 		api.NewAnalyticsAPI(s.repo, analytics.NewQueryStore(s.db)).Routes(mux)
+		api.NewStorageAPI(s.db, s.cfg.Database).Routes(mux)
 	}
 
 	redirectHandler := redirect.NewWithAnalyticsAndGeoIP(s.repo, s.linkCache, s.analytics, s.geo).

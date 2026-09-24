@@ -87,6 +87,19 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:26px 0 8px}
 <div class="card"><h2>Browsers</h2><p class="hint">Browsers your visitors use.</p><div class="bars" id="browsers"></div></div>
 <div class="card"><h2>Devices</h2><p class="hint">Desktop vs mobile vs tablet.</p><div class="bars" id="devices"></div></div>
 </section>
+<section class="card"><h2>Storage</h2><p class="hint">Database size, growth projection and cleanup suggestions. Keeps hosting costs in check.</p>
+<div class="stats" id="storageStats" style="display:none">
+<div class="stat" style="--accent:#8b5cf6"><div class="icon">💾</div><div class="label">Database size</div><div class="value" id="stDb">—</div></div>
+<div class="stat" style="--accent:#0ea5e9"><div class="icon">📝</div><div class="label">WAL size</div><div class="value" id="stWal">—</div></div>
+<div class="stat" style="--accent:#10b981"><div class="icon">📈</div><div class="label">Clicks / day</div><div class="value" id="stRate">—</div></div>
+<div class="stat" style="--accent:#f59e0b"><div class="icon">🔮</div><div class="label">Projected 90d growth</div><div class="value" id="stProj">—</div></div>
+</div>
+<div class="grid" id="storageGrid" style="display:none">
+<div class="card"><h2>Tables</h2><p class="hint">Rows per table.</p><div class="bars" id="stTables"></div></div>
+<div class="card"><h2>Growth projection</h2><p class="hint">Estimated click-data growth.</p><div class="bars" id="stGrowth"></div></div>
+</div>
+<div id="stSuggestions" style="display:none"><h3 style="margin:14px 0 8px">Cleanup suggestions</h3><div class="bars" id="stSugg"></div></div>
+</section>
 <section class="card"><h2>Recent links</h2><p class="hint">Your latest shortened links and their performance.</p><table><thead><tr><th>Slug</th><th>Destination</th><th>Clicks</th><th>Created</th><th>QR</th></tr></thead><tbody id="links"></tbody></table></section>
 <footer>Shorty Analytics · Data refreshes on demand</footer>
 </main>
@@ -98,7 +111,9 @@ function openQR(id){window.open(`/api/v1/links/${encodeURIComponent(id)}/qr`, '_
 function drawChart(a){const max=Math.max(1,...a.map(x=>x.clicks));$('chart').innerHTML=a.map(x=>`<div class="bar" style="height:${Math.max(2,x.clicks/max*100)}%" title="${new Date(x.period).toLocaleString()}: ${x.clicks} clicks"></div>`).join('')||'<div class="chart-empty">No clicks in the selected range yet.</div>';}
 function drawBreakdown(id,a){const max=Math.max(1,...a.map(x=>x.clicks));$(id).innerHTML=a.map(x=>`<div><div class="brow"><span title="${esc(x.name)}">${esc(x.name)}</span><b>${fmt(x.clicks)}</b></div><div class="track"><div class="fill" style="width:${x.clicks/max*100}%"></div></div></div>`).join('')||'<span style="color:var(--muted)">No data yet.</span>';}
 function fmt(n){return Number(n).toLocaleString('en-US');}
+function humanBytes(b){if(b<1024)return b+' B';const u=['KB','MB','GB','TB'];let i=-1;do{b/=1024;i++;}while(b>=1024&&i<u.length-1);return b.toFixed(1)+' '+u[i];}
+async function loadStorage(){try{const r=await fetch('/api/v1/storage');if(!r.ok)return;const d=await r.json();$('storageStats').style.display='';$('storageGrid').style.display='';$('stDb').textContent=humanBytes(d.database_bytes||0);$('stWal').textContent=humanBytes(d.wal_bytes||0);$('stRate').textContent=(d.clicks_per_day||0).toFixed(1);$('stProj').textContent='+'+humanBytes(d.projected_bytes_90d||0);const tabs=(d.tables||[]).filter(t=>t.rows>0);const tmax=Math.max(1,...tabs.map(t=>t.rows));$('stTables').innerHTML=tabs.map(t=>`<div><div class="brow"><span>${esc(t.name)}</span><b>${fmt(t.rows)}</b></div><div class="track"><div class="fill" style="width:${t.rows/tmax*100}%"></div></div></div>`).join('')||'<span style="color:var(--muted)">No data yet.</span>';const g=[['30 days',d.projected_bytes_30d||0],['90 days',d.projected_bytes_90d||0],['1 year',d.projected_bytes_365d||0]];const gmax=Math.max(1,...g.map(x=>x[1]));$('stGrowth').innerHTML=g.map(x=>`<div><div class="brow"><span>${x[0]}</span><b>+${humanBytes(x[1])}</b></div><div class="track"><div class="fill" style="width:${x[1]/gmax*100}%"></div></div></div>`).join('');const sg=d.suggestions||[];if(sg.length){$('stSuggestions').style.display='';$('stSugg').innerHTML=sg.map(s=>`<div><div class="brow"><span>💡 ${esc(s.title)}</span>${s.reclaimable_bytes?`<b>~${humanBytes(s.reclaimable_bytes)}</b>`:''}</div><div style="color:var(--muted);font-size:13px;margin:2px 0 10px">${esc(s.detail)}</div></div>`).join('');}}catch(e){/* storage panel stays hidden when API is unreachable/authed */}}
 function shortHost(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return u;}}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-$('link').addEventListener('change',loadAnalytics);$('interval').addEventListener('change',loadAnalytics);$('qr').addEventListener('click',()=>{if($('link').value)openQR($('link').value)});$('refresh').addEventListener('click',()=>loadLinks());loadLinks().catch(e=>document.querySelector('main').insertAdjacentHTML('beforeend',`<p style="color:var(--muted)">${esc(e.message)}</p>`));
+$('link').addEventListener('change',loadAnalytics);$('interval').addEventListener('change',loadAnalytics);$('qr').addEventListener('click',()=>{if($('link').value)openQR($('link').value)});$('refresh').addEventListener('click',()=>{loadLinks();loadStorage();});loadLinks().catch(e=>document.querySelector('main').insertAdjacentHTML('beforeend',`<p style="color:var(--muted)">${esc(e.message)}</p>`));loadStorage();
 </script></body></html>
